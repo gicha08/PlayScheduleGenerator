@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pickleball Schedule Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Pickleball Schedule Generator 🎾</h1>
+        <p>Enter your tournament parameters below.</p>
+    </header>
+
+    <div class="input-container">
+        <form id="scheduleForm">
+            <div class="form-group">
+                <label for="numPlayers">Number of Players:</label>
+                <input type="number" id="numPlayers" min="4" max="50" value="17" required>
+            </div>
+
+            <div class="form-group">
+                <label for="numCourts">Number of Courts:</label>
+                <input type="number" id="numCourts" min="1" max="10" value="4" required>
+            </div>
+
+            <div class="form-group">
+                <label for="numRounds">Number of Rounds:</label>
+                <input type="number" id="numRounds" min="1" max="50" value="8" required>
+            </div>
+
+            <button type="submit">Generate Schedule</button>
+        </form>
+    </div>
+
+    <main class="schedule-output">
+        <h2>Generated Schedule</h2>
+        <div id="resultMessage">
+            Enter your parameters and click "Generate Schedule" to see the results.
+        </div>
+        <div class="schedule-container"></div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
