@@ -1,33 +1,107 @@
+// document.addEventListener('DOMContentLoaded', () => {
+//     const form = document.getElementById('scheduleForm');
+//     const resultMessage = document.getElementById('resultMessage');
+//     const scheduleContainer = document.querySelector('.schedule-container');
+
+//     form.addEventListener('submit', (e) => {
+//         e.preventDefault();
+
+//         // 1. Get User Input
+//         const numPlayers = parseInt(document.getElementById('numPlayers').value);
+//         const numCourts = parseInt(document.getElementById('numCourts').value);
+//         const numRounds = parseInt(document.getElementById('numRounds').value);
+
+//         // Clear previous results
+//         scheduleContainer.innerHTML = '';
+        
+//         // Input Validation
+//         if (numPlayers < 4 || numCourts < 1) {
+//             resultMessage.innerHTML = `<p style="color:red;">Please enter at least 4 players and 1 court.</p>`;
+//             return;
+//         }
+//         if (numCourts * 4 > numPlayers) {
+//              resultMessage.innerHTML = `<p style="color:red;">The number of courts (${numCourts}) can't accommodate all ${numPlayers} players without excessive byes (need at least ${Math.ceil(numPlayers / 4)} courts).</p>`;
+//              return;
+//         }
+
+//         // 2. Generate and Display Schedule
+//         const result = matchUp(numPlayers, numRounds, numCourts, "N");
+//         displaySchedule(result.schedule, result.stats, resultMessage, scheduleContainer, numCourts, numPlayers);
+//     });
+// });
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('scheduleForm');
     const resultMessage = document.getElementById('resultMessage');
     const scheduleContainer = document.querySelector('.schedule-container');
+    const statContainer = document.getElementById('stat-container');
+    const printButton = document.getElementById('printButton'); // Get the new button
 
+    // --- NEW: Print Function ---
+    const printSchedule = () => {
+        // Isolate the content you want to print (schedule + metrics)
+        const contentToPrint = scheduleContainer.innerHTML;
+        
+        // Create a temporary iframe or window to load the content for printing
+        const printWindow = window.open('', '', 'height=600,width=800');
+        
+        printWindow.document.write('<html><head><title>Match Schedule</title>');
+        // Optionally copy over some essential styles for clean printing
+        printWindow.document.write('<style>');
+        printWindow.document.write('body { font-family: sans-serif; margin: 20px; }');
+        printWindow.document.write('h2, h3 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }');
+        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }');
+        printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
+        printWindow.document.write('.error-cell { background-color: #ffcccc; color: red; font-weight: bold; }');
+        printWindow.document.write('</style>');
+        printWindow.document.write('</head><body>');
+        
+        // Write the schedule content
+        printWindow.document.write('<h1>Generated Doubles Match Schedule</h1>');
+        printWindow.document.write(contentToPrint);
+        
+        printWindow.document.write('</body></html>');
+        
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print(); // Trigger the print dialog
+    };
+
+    // --- Event Listeners ---
     form.addEventListener('submit', (e) => {
-        e.preventDefault();
+        e.preventDefault(); 
 
         // 1. Get User Input
         const numPlayers = parseInt(document.getElementById('numPlayers').value);
         const numCourts = parseInt(document.getElementById('numCourts').value);
         const numRounds = parseInt(document.getElementById('numRounds').value);
 
-        // Clear previous results
+        // Clear previous results and hide print button
         scheduleContainer.innerHTML = '';
+        statContainer.innerHTML = '';
+        printButton.style.display = 'none';
         
-        // Input Validation
+        // Input Validation (rest of logic remains the same)
         if (numPlayers < 4 || numCourts < 1) {
             resultMessage.innerHTML = `<p style="color:red;">Please enter at least 4 players and 1 court.</p>`;
             return;
         }
         if (numCourts * 4 > numPlayers) {
-             resultMessage.innerHTML = `<p style="color:red;">The number of courts (${numCourts}) can't accommodate all ${numPlayers} players without excessive byes (need at least ${Math.ceil(numPlayers / 4)} courts).</p>`;
+             resultMessage.innerHTML = `<p style="color:red;">The number of courts (${numCourts}) can't accommodate all ${numPlayers} players without excessive byes (Max players per round is ${numCourts * 4}).</p>`;
              return;
         }
 
         // 2. Generate and Display Schedule
         const result = matchUp(numPlayers, numRounds, numCourts, "N");
-        displaySchedule(result.schedule, result.stats, resultMessage, scheduleContainer, numCourts, numPlayers);
+        displaySchedule(result.schedule, result.stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers);
+        
+        // 3. SHOW PRINT BUTTON on success
+        printButton.style.display = 'block';
     });
+    
+    // NEW: Attach the print function to the button
+    printButton.addEventListener('click', printSchedule);
+
 });
 
 // --- CORE SCHEDULING HEURISTIC FUNCTIONS ---
@@ -73,7 +147,7 @@ function generateQuartets(pool) {
                          // Final quartet format: [P1, P2, P3, P4] (indices)
                          quartets.push([p1, p2, p3, p4]); 
                     }
-                }
+                } 
             }
         }
     }
@@ -228,7 +302,7 @@ function formatMatch(match) {
     return `(${p1}) vs (${p2})`;
 }
 
-function displaySchedule(schedule, stats, resultMessage, scheduleContainer, numCourts, numPlayers) {
+function displaySchedule(schedule, stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers) {
     // 1. Display Schedule Table
     let html = '<h2>Match Schedule</h2>';
     html += '<div class="schedule-table-wrapper">';
@@ -258,14 +332,14 @@ function displaySchedule(schedule, stats, resultMessage, scheduleContainer, numC
         html += '</tr>';
     });
     html += '</tbody></table></div>';
+    scheduleContainer.innerHTML = html;
     
     // 2. Display Stats
-    html += '<h2>Fairness Metrics (Total Counts)</h2>';
+    html = '<h2>Fairness Metrics (Total Counts)</h2>';
     html += displayStatsMatrix(stats.partners, 'Partners', numPlayers, stats.playerIDs);
     html += displayStatsMatrix(stats.opponents, 'Opponents', numPlayers, stats.playerIDs);
     html += displayStatsMatrix(stats.courts, 'Court Assignments', numPlayers, stats.playerIDs, true, numCourts);
-
-    scheduleContainer.innerHTML = html;
+    statContainer.innerHTML = html;
     
     resultMessage.innerHTML = `
         <h3>Schedule Generated Successfully!</h3>

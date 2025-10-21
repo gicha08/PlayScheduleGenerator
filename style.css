@@ -74,16 +74,14 @@ button:hover {
     border-radius: 4px;
 }
 
-.schedule-container table {
-    /* Basic table styling for generated output */
+.schedule-container table, #stat-container table {
     width: 100%;
     border-collapse: collapse;
     margin: 20px auto;
-}
-.schedule-container th, .schedule-container td {
+} 
+.schedule-container th, .schedule-container td, #stat-container th, #stat-container td {
     border: 1px solid #ccc;
     padding: 8px;
     text-align: center;
 
 }
-
