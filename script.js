@@ -30,58 +30,76 @@
 //     });
 // });
 
+// Module-level state for toggle persistence
+let lastSchedule = null;
+let lastNumCourts = null;
+let currentView = 'table';
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('scheduleForm');
     const resultMessage = document.getElementById('resultMessage');
     const scheduleContainer = document.querySelector('.schedule-container');
     const statContainer = document.getElementById('stat-container');
-    const printButton = document.getElementById('printButton'); // Get the new button
+    const printButton = document.getElementById('printButton');
+    const viewToggle = document.getElementById('viewToggle');
 
-    // --- NEW: Print Function ---
+    // --- Print Function ---
     const printSchedule = () => {
-        // Isolate the content you want to print (schedule + metrics)
         const contentToPrint = scheduleContainer.innerHTML;
-        
-        // Create a temporary iframe or window to load the content for printing
         const printWindow = window.open('', '', 'height=600,width=800');
-        
+
         printWindow.document.write('<html><head><title>Match Schedule</title>');
-        // Optionally copy over some essential styles for clean printing
         printWindow.document.write('<style>');
         printWindow.document.write('body { font-family: sans-serif; margin: 20px; }');
         printWindow.document.write('h2, h3 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }');
         printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }');
         printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
         printWindow.document.write('.error-cell { background-color: #ffcccc; color: red; font-weight: bold; }');
+        printWindow.document.write('.schedule-cards-wrapper { display: flex; flex-wrap: wrap; gap: 20px; }');
+        printWindow.document.write('.round-card { background: white; border: 1px solid #ddd; border-radius: 8px; width: 280px; page-break-inside: avoid; }');
+        printWindow.document.write('.round-card-header { background-color: #2a9d8f; color: white; padding: 8px 12px; font-weight: bold; }');
+        printWindow.document.write('.round-card-body { padding: 12px; }');
+        printWindow.document.write('.court-match { padding: 6px 0; border-bottom: 1px solid #eee; }');
+        printWindow.document.write('.court-match:last-child { border-bottom: none; }');
+        printWindow.document.write('.court-label { font-size: 0.8em; font-weight: bold; color: #2a9d8f; }');
+        printWindow.document.write('.bye-label { padding: 6px 12px; font-size: 0.85em; color: #888; font-style: italic; }');
         printWindow.document.write('</style>');
         printWindow.document.write('</head><body>');
-        
-        // Write the schedule content
         printWindow.document.write('<h1>Generated Doubles Match Schedule</h1>');
         printWindow.document.write(contentToPrint);
-        
         printWindow.document.write('</body></html>');
-        
+
         printWindow.document.close();
         printWindow.focus();
-        printWindow.print(); // Trigger the print dialog
+        printWindow.print();
     };
 
-    // --- Event Listeners ---
-    form.addEventListener('submit', (e) => {
-        e.preventDefault(); 
+    // --- Toggle View ---
+    viewToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.toggle-btn');
+        if (!btn || btn.classList.contains('active')) return;
 
-        // 1. Get User Input
+        viewToggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        currentView = btn.dataset.view;
+        renderCurrentView(scheduleContainer);
+    });
+
+    // --- Form Submit ---
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
         const numPlayers = parseInt(document.getElementById('numPlayers').value);
         const numCourts = parseInt(document.getElementById('numCourts').value);
         const numRounds = parseInt(document.getElementById('numRounds').value);
 
-        // Clear previous results and hide print button
         scheduleContainer.innerHTML = '';
         statContainer.innerHTML = '';
         printButton.style.display = 'none';
-        
-        // Input Validation (rest of logic remains the same)
+        viewToggle.style.display = 'none';
+        document.getElementById('matchScheduleHeading').style.display = 'none';
+
         if (numPlayers < 4 || numCourts < 1) {
             resultMessage.innerHTML = `<p style="color:red;">Please enter at least 4 players and 1 court.</p>`;
             return;
@@ -91,17 +109,17 @@ document.addEventListener('DOMContentLoaded', () => {
              return;
         }
 
-        // 2. Generate and Display Schedule
         const result = matchUp(numPlayers, numRounds, numCourts, "N");
-        displaySchedule(result.schedule, result.stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers);
-        
-        // 3. SHOW PRINT BUTTON on success
-        printButton.style.display = 'block';
-    });
-    
-    // NEW: Attach the print function to the button
-    printButton.addEventListener('click', printSchedule);
+        lastSchedule = result.schedule;
+        lastNumCourts = numCourts;
 
+        displaySchedule(result.schedule, result.stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers);
+
+        printButton.style.display = 'block';
+        viewToggle.style.display = 'flex';
+    });
+
+    printButton.addEventListener('click', printSchedule);
 });
 
 // --- CORE SCHEDULING HEURISTIC FUNCTIONS ---
@@ -302,10 +320,21 @@ function formatMatch(match) {
     return `(${p1}) vs (${p2})`;
 }
 
-function displaySchedule(schedule, stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers) {
-    // 1. Display Schedule Table
-    let html = '<h2>Match Schedule</h2>';
-    html += '<div class="schedule-table-wrapper">';
+function renderCurrentView(scheduleContainer) {
+    if (!lastSchedule) return;
+    const wrapper = scheduleContainer.querySelector('.schedule-table-wrapper');
+    const cards = scheduleContainer.querySelector('.schedule-cards-wrapper');
+    if (currentView === 'table') {
+        if (wrapper) wrapper.style.display = '';
+        if (cards) cards.style.display = 'none';
+    } else {
+        if (wrapper) wrapper.style.display = 'none';
+        if (cards) cards.style.display = '';
+    }
+}
+
+function buildTableHTML(schedule, numCourts) {
+    let html = '<div class="schedule-table-wrapper">';
     html += '<table><thead><tr><th>Round</th><th>Bye Player(s)</th>';
     for (let c = 1; c <= numCourts; c++) {
         html += `<th>Court ${c}</th>`;
@@ -316,14 +345,14 @@ function displaySchedule(schedule, stats, resultMessage, scheduleContainer, stat
         html += '<tr>';
         html += `<td>${round.R}</td>`;
         html += `<td class="bye">${round.Bye}</td>`;
-        
+
         let matchMap = new Map();
         round.Matches.forEach(m => matchMap.set(m.court, m));
 
         for (let c = 1; c <= numCourts; c++) {
             const match = matchMap.get(c);
             if (match) {
-                const courtClass = `court-${c % 4 + 1}`; 
+                const courtClass = `court-${c % 4 + 1}`;
                 html += `<td><span class="${courtClass}">${formatMatch(match)}</span></td>`;
             } else {
                 html += `<td>-</td>`;
@@ -332,19 +361,53 @@ function displaySchedule(schedule, stats, resultMessage, scheduleContainer, stat
         html += '</tr>';
     });
     html += '</tbody></table></div>';
+    return html;
+}
+
+function buildCardsHTML(schedule) {
+    let html = '<div class="schedule-cards-wrapper" style="display:none;">';
+    schedule.forEach(round => {
+        html += '<div class="round-card">';
+        html += `<div class="round-card-header">Round ${round.R}</div>`;
+        html += '<div class="round-card-body">';
+        round.Matches.forEach(match => {
+            html += '<div class="court-match">';
+            html += `<div class="court-label">Court ${match.court}</div>`;
+            html += `<div class="match-text">${formatMatch(match)}</div>`;
+            html += '</div>';
+        });
+        html += '</div>';
+        if (round.Bye && round.Bye !== 'None') {
+            html += `<div class="bye-label">Bye: ${round.Bye}</div>`;
+        }
+        html += '</div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+function displaySchedule(schedule, stats, resultMessage, scheduleContainer, statContainer, numCourts, numPlayers) {
+    const matchHeading = document.getElementById('matchScheduleHeading');
+    if (matchHeading) matchHeading.style.display = '';
+
+    let html = buildTableHTML(schedule, numCourts);
+    html += buildCardsHTML(schedule);
     scheduleContainer.innerHTML = html;
-    
-    // 2. Display Stats
-    html = '<h2>Fairness Metrics (Total Counts)</h2>';
-    html += displayStatsMatrix(stats.partners, 'Partners', numPlayers, stats.playerIDs);
-    html += displayStatsMatrix(stats.opponents, 'Opponents', numPlayers, stats.playerIDs);
-    html += displayStatsMatrix(stats.courts, 'Court Assignments', numPlayers, stats.playerIDs, true, numCourts);
-    statContainer.innerHTML = html;
-    
+
+    // Apply current view state
+    renderCurrentView(scheduleContainer);
+
+    // Display Stats
+    let statsHtml = '<h2>Fairness Metrics (Total Counts)</h2>';
+    statsHtml += displayStatsMatrix(stats.partners, 'Partners', numPlayers, stats.playerIDs);
+    statsHtml += displayStatsMatrix(stats.opponents, 'Opponents', numPlayers, stats.playerIDs);
+    statsHtml += displayStatsMatrix(stats.courts, 'Court Assignments', numPlayers, stats.playerIDs, true, numCourts);
+    statContainer.innerHTML = statsHtml;
+
     resultMessage.innerHTML = `
         <h3>Schedule Generated Successfully!</h3>
         <p style="color: blue; font-weight: bold;">
-            This schedule strictly enforces the "NO REPEATED PARTNERS" rule and uses a heuristic 
+            This schedule strictly enforces the "NO REPEATED PARTNERS" rule and uses a heuristic
             to maximize fairness in opponent and court usage.
         </p>
     `;
