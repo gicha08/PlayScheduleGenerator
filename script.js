@@ -46,23 +46,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Print Function ---
     const printSchedule = () => {
         const contentToPrint = scheduleContainer.innerHTML;
-        const printWindow = window.open('', '', 'height=600,width=800');
+
+        // Count rounds to determine optimal card layout
+        const roundCount = scheduleContainer.querySelectorAll('.round-card').length;
+        // Calculate optimal columns: aim for 4 columns, but adjust based on round count
+        const cardColumns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(roundCount))));
+
+        const printWindow = window.open('', '', 'height=600,width=1000');
 
         printWindow.document.write('<html><head><title>Match Schedule</title>');
         printWindow.document.write('<style>');
-        printWindow.document.write('body { font-family: sans-serif; margin: 20px; }');
+        printWindow.document.write('body { font-family: sans-serif; margin: 10px; }');
+        printWindow.document.write('h1 { font-size: 1.2em; margin: 0 0 10px 0; }');
         printWindow.document.write('h2, h3 { color: #333; border-bottom: 1px solid #ccc; padding-bottom: 5px; }');
         printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }');
         printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
         printWindow.document.write('.error-cell { background-color: #ffcccc; color: red; font-weight: bold; }');
-        printWindow.document.write('.schedule-cards-wrapper { display: flex; flex-wrap: wrap; gap: 20px; }');
-        printWindow.document.write('.round-card { background: white; border: 1px solid #ddd; border-radius: 8px; width: 280px; page-break-inside: avoid; }');
-        printWindow.document.write('.round-card-header { background-color: #2a9d8f; color: white; padding: 8px 12px; font-weight: bold; }');
-        printWindow.document.write('.round-card-body { padding: 12px; }');
-        printWindow.document.write('.court-match { padding: 6px 0; border-bottom: 1px solid #eee; }');
+        // Cards-specific compact styles for printing
+        printWindow.document.write(`.schedule-cards-wrapper { display: grid; grid-template-columns: repeat(${cardColumns}, 1fr); gap: 10px; width: 960px; }`);
+        printWindow.document.write('.round-card { background: white; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; }');
+        printWindow.document.write('.round-card-header { background-color: #2a9d8f; color: white; padding: 5px 8px; font-weight: bold; font-size: 0.95em; }');
+        printWindow.document.write('.round-card-body { padding: 8px; }');
+        printWindow.document.write('.court-match { padding: 4px 0; border-bottom: 1px solid #eee; }');
         printWindow.document.write('.court-match:last-child { border-bottom: none; }');
-        printWindow.document.write('.court-label { font-size: 0.8em; font-weight: bold; color: #2a9d8f; }');
-        printWindow.document.write('.bye-label { padding: 6px 12px; font-size: 0.85em; color: #888; font-style: italic; }');
+        printWindow.document.write('.court-label { font-size: 0.75em; font-weight: bold; color: #2a9d8f; }');
+        printWindow.document.write('.bye-label { padding: 4px 8px; font-size: 0.8em; color: #888; font-style: italic; }');
         printWindow.document.write('</style>');
         printWindow.document.write('</head><body>');
         printWindow.document.write('<h1>Generated Doubles Match Schedule</h1>');
@@ -71,7 +79,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
         printWindow.document.close();
         printWindow.focus();
-        printWindow.print();
+
+        // Use setTimeout to allow content to render before measuring
+        setTimeout(() => {
+            // Measure content dimensions
+            const content = printWindow.document.body;
+            const contentWidth = content.scrollWidth;
+            const contentHeight = content.scrollHeight;
+
+            // Printable areas (in pixels at 96 DPI, with ~0.5" margins)
+            const portraitWidth = 720;   // ~7.5 inches
+            const portraitHeight = 960;  // ~10 inches
+            const landscapeWidth = 960;  // ~10 inches
+            const landscapeHeight = 720; // ~7.5 inches
+
+            // Calculate scale needed for each orientation (cap at 1 to avoid enlarging)
+            const portraitScale = Math.min(portraitWidth / contentWidth, portraitHeight / contentHeight, 1);
+            const landscapeScale = Math.min(landscapeWidth / contentWidth, landscapeHeight / contentHeight, 1);
+
+            // Choose orientation that needs less scaling (larger scale = less shrinking)
+            const useLandscape = landscapeScale > portraitScale;
+            const scale = useLandscape ? landscapeScale : portraitScale;
+
+            // Create style element with calculated values
+            const style = printWindow.document.createElement('style');
+            style.textContent = `
+                @page { size: ${useLandscape ? 'landscape' : 'portrait'}; margin: 10mm; }
+                @media print {
+                    body {
+                        transform: scale(${scale});
+                        transform-origin: top left;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+            `;
+            printWindow.document.head.appendChild(style);
+            printWindow.print();
+        }, 100);
     };
 
     // --- Toggle View ---
